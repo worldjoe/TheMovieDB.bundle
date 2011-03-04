@@ -70,8 +70,11 @@ class TMDbAgent(Agent.Movies):
       metadata.summary = ""
     
     # Release date.
-    try: metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['released']).date()
-    except: pass
+    try: 
+      metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['released']).date()
+      metadata.year = metadata.originally_available_at.year
+    except: 
+      pass
       
     # Runtime.
     try: metadata.duration = int(tmdb_dict['runtime']) * 60 * 1000
