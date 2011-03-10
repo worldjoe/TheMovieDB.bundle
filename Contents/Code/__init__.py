@@ -50,7 +50,7 @@ def GetImdbIdFromHash(openSubtitlesHash, lang):
   
 class TMDbAgent(Agent.Movies):
 
-  name = 'TheMovieDB-Aqntbghd'
+  name = 'TheMovieDB'
   # languages = [Locale.Language.English, 'fr']
   languages = [Locale.Language.English, 'fr', 'nl', 'de', 'it', 'es','da']
 
