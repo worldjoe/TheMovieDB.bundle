@@ -17,7 +17,8 @@ TMDB_LANGUAGE_CODES = {
   'es': 'es',
   'nl': 'nl',
   'de': 'de',
-  'it': 'it'
+  'it': 'it',
+  'da': 'da'
 }
 
 def Start():
@@ -48,7 +49,9 @@ def GetImdbIdFromHash(openSubtitlesHash, lang):
 
 class TMDbAgent(Agent.Movies):
   name = 'TheMovieDB'
-  languages = [Locale.Language.English, 'sv', 'fr', 'es', 'nl', 'de', 'it']
+  languages = [Locale.Language.English, Locale.Language.Swedish, Locale.Language.French,
+               Locale.Language.Spanish, Locale.Language.Dutch, Locale.Language.German,
+               Locale.Language.Italian, Locale.Language.Danish]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.imdb']
 
