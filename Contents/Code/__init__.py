@@ -12,12 +12,12 @@ TMDB_GETINFO_HASH = 'http://api.themoviedb.org/2.1/Hash.getInfo/%s/json/a3dc111e
 
 TMDB_LANGUAGE_CODES = {
   'en': 'en',
+  'sv': 'sv',
   'fr': 'fr-FR',
+  'es': 'es',
   'nl': 'nl',
   'de': 'de',
-  'it': 'it',
-  'es': 'es',
-  'da': 'da'
+  'it': 'it'
 }
 
 def Start():
@@ -48,7 +48,7 @@ def GetImdbIdFromHash(openSubtitlesHash, lang):
 
 class TMDbAgent(Agent.Movies):
   name = 'TheMovieDB'
-  languages = [Locale.Language.English, 'fr', 'nl', 'de', 'it', 'es', 'da']
+  languages = [Locale.Language.English, 'sv', 'fr', 'es', 'nl', 'de', 'it']
   primary_provider = False
   contributes_to = ['com.plexapp.agents.imdb']
 
