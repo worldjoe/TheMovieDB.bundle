@@ -1,0 +1,8 @@
+[
+  {
+    "id":"title",
+    "label":"Use Movie Title from TheMovieDB",
+    "type":"bool",
+    "default":"true"
+  }
+]
