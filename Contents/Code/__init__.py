@@ -6,6 +6,7 @@
 
 import time
 
+
 TMDB_GETINFO_IMDB = 'http://api.themoviedb.org/2.1/Movie.imdbLookup/en/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_TMDB = 'http://api.themoviedb.org/2.1/Movie.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_HASH = 'http://api.themoviedb.org/2.1/Hash.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
@@ -20,6 +21,21 @@ TMDB_LANGUAGE_CODES = {
   'it': 'it',
   'da': 'da'
 }
+
+#v3
+TMDB_BASEURL        = 'http://api.themoviedb.org/3/'
+TMDB_API_KEY        = '?api_key=a3dc111e66105f6387e99393813ae4d5'
+TMDB_LANGUAGE       = '&language=%S'
+TMDB_QUERY          = TMDB_API_KEY + TMDB_LANGUAGE
+
+TMDB_GETCONFIG      = TMDB_BASEURL + 'configuration' + TMDB_QUERY
+TMDB_MOVIE_INFO     = TMDB_BASEURL + 'movie/%s' + TMDB_QUERY
+TMDB_MOVIE_IMAGES   = TMDB_BASEURL + 'movie/%s/images' + TMDB_QUERY
+TMDB_MOVIE_CASTS    = TMDB_BASEURL + 'movie/%s/casts' + TMDB_QUERY
+TMDB_MOVIE_TRAILERS = TMDB_BASEURL + 'movie/%s/trailers' + TMDB_QUERY
+TMDB_MOVIE_RELEASES = TMDB_BASEURL + 'movie/%s/releases' + TMDB_QUERY
+TMDB_MOVIE_ALTTITLE = TMDB_BASEURL + 'movie/%s/alternative_titles' + TMDB_QUERY
+
 
 def Start():
   HTTP.CacheTime = CACHE_1HOUR * 4
