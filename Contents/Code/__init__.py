@@ -6,7 +6,6 @@
 
 import time
 
-
 TMDB_GETINFO_IMDB = 'http://api.themoviedb.org/2.1/Movie.imdbLookup/en/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_TMDB = 'http://api.themoviedb.org/2.1/Movie.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_HASH = 'http://api.themoviedb.org/2.1/Hash.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
@@ -23,18 +22,18 @@ TMDB_LANGUAGE_CODES = {
 }
 
 #v3
-TMDB_BASEURL        = 'http://api.themoviedb.org/3/'
-TMDB_API_KEY        = '?api_key=a3dc111e66105f6387e99393813ae4d5'
-TMDB_LANGUAGE       = '&language=%S'
-TMDB_QUERY          = TMDB_API_KEY + TMDB_LANGUAGE
+TMDB_BASEURL            = 'http://api.themoviedb.org/3/'
+TMDB_API_KEY            = '?api_key=a3dc111e66105f6387e99393813ae4d5'
+TMDB_LANGUAGE           = '&language=%s'
 
-TMDB_GETCONFIG      = TMDB_BASEURL + 'configuration' + TMDB_QUERY
-TMDB_MOVIE_INFO     = TMDB_BASEURL + 'movie/%s' + TMDB_QUERY
-TMDB_MOVIE_IMAGES   = TMDB_BASEURL + 'movie/%s/images' + TMDB_QUERY
-TMDB_MOVIE_CASTS    = TMDB_BASEURL + 'movie/%s/casts' + TMDB_QUERY
-TMDB_MOVIE_TRAILERS = TMDB_BASEURL + 'movie/%s/trailers' + TMDB_QUERY
-TMDB_MOVIE_RELEASES = TMDB_BASEURL + 'movie/%s/releases' + TMDB_QUERY
-TMDB_MOVIE_ALTTITLE = TMDB_BASEURL + 'movie/%s/alternative_titles' + TMDB_QUERY
+TMDB_GETCONFIG          = TMDB_BASEURL + 'configuration' + TMDB_API_KEY
+TMDB_MOVIE_INFO         = TMDB_BASEURL + 'movie/%s' + TMDB_API_KEY + TMDB_LANGUAGE
+TMDB_MOVIE_IMAGES       = TMDB_BASEURL + 'movie/%s/images' + TMDB_API_KEY
+TMDB_MOVIE_IMAGES_LANG  = TMDB_BASEURL + 'movie/%s/images' + TMDB_API_KEY + TMDB_LANGUAGE
+TMDB_MOVIE_CASTS        = TMDB_BASEURL + 'movie/%s/casts' + TMDB_API_KEY
+TMDB_MOVIE_TRAILERS     = TMDB_BASEURL + 'movie/%s/trailers' + TMDB_API_KEY + TMDB_LANGUAGE
+TMDB_MOVIE_RELEASES     = TMDB_BASEURL + 'movie/%s/releases' + TMDB_API_KEY
+TMDB_MOVIE_ALTTITLE     = TMDB_BASEURL + 'movie/%s/alternative_titles' + TMDB_API_KEY + '&country=%s'
 
 
 def Start():
@@ -73,50 +72,53 @@ class TMDbAgent(Agent.Movies):
 
   def search(self, results, media, lang):
     if media.primary_metadata is not None:
-      tmdb_id = self.get_tmdb_id(media.primary_metadata.id) # get the TMDb ID using the IMDB ID
-      if tmdb_id:
-        results.Append(MetadataSearchResult(id = tmdb_id, score = 100))
-    elif media.openSubtitlesHash is not None:
-      match = GetImdbIdFromHash(media.openSubtitlesHash, lang)
+      if media.primary_metadata.id:
+        results.Append(MetadataSearchResult(id = media.primary_metadata.id, score = 100))
+    #elif media.openSubtitlesHash is not None:
+    #  match = GetImdbIdFromHash(media.openSubtitlesHash, lang)
 
   def update(self, metadata, media, lang): 
     proxy = Proxy.Preview
-    try:
-      tmdb_info = HTTP.Request(TMDB_GETINFO_TMDB % (GetLanguageCode(lang), metadata.id)).content
-      if tmdb_info.count('503 Service Unavailable') > 0:
-        time.sleep(5)
-        tmdb_info = HTTP.Request(TMDB_GETINFO_TMDB % (GetLanguageCode(lang), metadata.id), cacheTime=0).content
-      tmdb_dict = JSON.ObjectFromString(tmdb_info)[0] #get the full TMDB info record using the TMDB id
-    except:
-      Log('Exception fetching JSON from theMovieDB (1).')
-      return None
-
+    #try:
+    HTTP.Headers['Accept'] = 'application/json'
+    config_dict = JSON.ObjectFromURL(TMDB_GETCONFIG, cacheTime=600000)
+    tmdb_image_baseurl = config_dict['images']['base_url']
+    
+    tmdb_dict = JSON.ObjectFromURL(TMDB_MOVIE_INFO % (metadata.id, GetLanguageCode(lang)))
+    #Log(tmdb_info)
+    #if tmdb_info.count('503 Service Unavailable') > 0:
+    #  time.sleep(5)
+    #  tmdb_info = HTTP.Request(TMDB_MOVIE_INFO % (metadata.id, GetLanguageCode(lang)), cacheTime=0).content
+    #Log(tmdb_dict)
+    #except:
+    #  Log('Exception fetching JSON from theMovieDB (1).')
+    #  return None
+    
     # Rating.
-    votes = tmdb_dict['votes']
-    rating = tmdb_dict['rating']
-    if votes > 3:
-      metadata.rating = rating
+    if tmdb_dict['vote_count'] > 3:
+      metadata.rating = tmdb_dict['vote_average']
 
     # Title of the film.
     if Prefs['title']:
-      metadata.title = tmdb_dict['name']
+      metadata.title = tmdb_dict['original_title']
     else:
-      metadata.title = ""
+      metadata.title = ''
 
     # Tagline.
     metadata.tagline = tmdb_dict['tagline']
 
     # Content rating.
-    metadata.content_rating = tmdb_dict['certification']
+    release_dict = JSON.ObjectFromURL(TMDB_MOVIE_RELEASES % metadata.id)
+    metadata.content_rating = release_dict['countries'][0]['certification']
 
     # Summary.
     metadata.summary = tmdb_dict['overview']
     if metadata.summary == 'No overview found.':
-      metadata.summary = ""
+      metadata.summary = ''
 
     # Release date.
     try: 
-      metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['released']).date()
+      metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['release_date']).date()
       metadata.year = metadata.originally_available_at.year
     except: 
       pass
@@ -131,67 +133,54 @@ class TMDbAgent(Agent.Movies):
       metadata.genres.add(genre['name'])
 
     # Studio.
-    try: metadata.studio = tmdb_dict['studios'][0]['name']
+    try: metadata.studio = tmdb_dict['production_companies'][0]['name']
     except: pass
 
     # Cast.
+    cast_dict = JSON.ObjectFromURL(TMDB_MOVIE_CASTS % metadata.id)
     metadata.directors.clear()
     metadata.writers.clear()
     metadata.roles.clear()
 
-    for member in tmdb_dict['cast']:
+    for member in cast_dict['cast']:
+      role = metadata.roles.new()
+      role.role = member['character']
+      role.actor = member['name']
+    for member in cast_dict['crew']:        
       if member['job'] == 'Director':
         metadata.directors.add(member['name'])
       elif member['job'] == 'Author':
         metadata.writers.add(member['name'])
-      elif member['job'] == 'Actor':
-        role = metadata.roles.new()
-        role.role = member['character']
-        role.actor = member['name']
 
-    i = 0
+    #images
+    images_dict = JSON.ObjectFromURL(TMDB_MOVIE_IMAGES % metadata.id) #, GetLanguageCode(lang)))
+    #tmdb_image_baseurl
+    i = 0 # for sort order
     valid_names = list()
-    for p in tmdb_dict['posters']:
-      if p['image']['size'] == 'original':
-        i += 1
-        valid_names.append(p['image']['url'])
-        if p['image']['url'] not in metadata.posters:
-          p_id = p['image']['id']
-
-          # Find a thumbnail.
-          for t in tmdb_dict['posters']:
-            if t['image']['id'] == p_id and t['image']['size'] == 'mid':
-              thumb = HTTP.Request(t['image']['url'])
-              break
-
-          try: metadata.posters[p['image']['url']] = proxy(thumb, sort_order = i)
-          except: pass
-
+    for p in images_dict['posters']:
+      i += 1
+      valid_names.append(p['file_path'])
+      if p['file_path'] not in metadata.posters:
+        try: metadata.posters[tmdb_image_baseurl + 'original' + p['file_path']] = proxy(tmdb_image_baseurl + 'w92' + p['file_path'], sort_order = i)
+        except: pass
     metadata.posters.validate_keys(valid_names)
+    
     valid_names = list()
-
     i = 0
-    for b in tmdb_dict['backdrops']:
-      if b['image']['size'] == 'original':
-        i += 1
-        valid_names.append(b['image']['url'])
-        if b['image']['url'] not in metadata.art:
-          b_id = b['image']['id']
-          for t in tmdb_dict['backdrops']:
-            if t['image']['id'] == b_id and t['image']['size'] == 'poster':
-              thumb = HTTP.Request(t['image']['url'])
-              break 
-          try: metadata.art[b['image']['url']] = proxy(thumb, sort_order = i)
-          except: pass
-
+    for b in images_dict['backdrops']:
+      i += 1
+      valid_names.append(b['file_path'])
+      if b['file_path'] not in metadata.art:
+        try: metadata.art[tmdb_image_baseurl + 'original' + b['file_path']] = proxy(tmdb_image_baseurl + 'w300' + b['file_path'], sort_order = i)
+        except: pass
     metadata.art.validate_keys(valid_names)
 
   def get_tmdb_id(self, imdb_id):
     try:
-      tmdb_info = HTTP.Request(TMDB_GETINFO_IMDB % str(imdb_id)).content
+      tmdb_info = HTTP.Request(TMDB_MOVIE_INFO % str(imdb_id)).content
       if tmdb_info.count('503 Service Unavailable') > 0:
         time.sleep(5)
-        tmdb_info = HTTP.Request(TMDB_GETINFO_IMDB % str(imdb_id), cacheTime=0).content
+        tmdb_info = HTTP.Request(TMDB_MOVIE_INFO % str(imdb_id), cacheTime=0).content
       tmdb_dict = JSON.ObjectFromString(tmdb_info)[0]
     except:
       Log('Exception fetching JSON from theMovieDB (2).')
