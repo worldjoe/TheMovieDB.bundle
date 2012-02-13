@@ -139,7 +139,7 @@ class TMDbAgent(Agent.Movies):
     # Collection
     try: 
       metadata.collections.clear()
-      metadata.collections.add(tmdb_dict['belongs_to_collection']['name']) 
+      metadata.collections.add(tmdb_dict['belongs_to_collection']['name'].replace(' Collection','')) 
     except: 
       pass
 
