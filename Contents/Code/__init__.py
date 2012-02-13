@@ -136,6 +136,13 @@ class TMDbAgent(Agent.Movies):
     try: metadata.studio = tmdb_dict['production_companies'][0]['name']
     except: pass
 
+    # Collection
+    try: 
+      metadata.collections.clear()
+      metadata.collections.add(tmdb_dict['belongs_to_collection']['name']) 
+    except: 
+      pass
+
     # Cast.
     cast_dict = JSON.ObjectFromURL(TMDB_MOVIE_CASTS % metadata.id)
     metadata.directors.clear()
