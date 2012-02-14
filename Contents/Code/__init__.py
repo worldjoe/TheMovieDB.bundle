@@ -153,6 +153,8 @@ class TMDbAgent(Agent.Movies):
       role = metadata.roles.new()
       role.role = member['character']
       role.actor = member['name']
+      try: role.photo = tmdb_image_baseurl + 'original' + member['profile_path']
+      except: pass
     for member in cast_dict['crew']:        
       if member['job'] == 'Director':
         metadata.directors.add(member['name'])
