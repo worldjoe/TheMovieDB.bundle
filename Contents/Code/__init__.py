@@ -115,7 +115,7 @@ class TMDbAgent(Agent.Movies):
       metadata.genres.add(genre['name'])
 
     # Studio.
-    try: metadata.studio = tmdb_dict['studios'][0]['name']
+    try: metadata.studio = tmdb_dict['studios'][0]['name'].strip()
     except: pass
 
     # Cast.
