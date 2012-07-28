@@ -9,6 +9,7 @@ import time
 TMDB_GETINFO_IMDB = 'http://api.themoviedb.org/2.1/Movie.imdbLookup/en/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_TMDB = 'http://api.themoviedb.org/2.1/Movie.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
 TMDB_GETINFO_HASH = 'http://api.themoviedb.org/2.1/Hash.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
+TMDB_GETINFO_PERSON = 'http://api.themoviedb.org/2.1/Person.getInfo/%s/json/a3dc111e66105f6387e99393813ae4d5/%s'
 
 TMDB_LANGUAGE_CODES = {
   'en': 'en',
@@ -132,6 +133,14 @@ class TMDbAgent(Agent.Movies):
         role = metadata.roles.new()
         role.role = member['character']
         role.actor = member['name']
+        try:
+          personPics = JSON.ObjectFromURL(TMDB_GETINFO_PERSON % (GetLanguageCode(lang), member['id']))[0]['profile']
+          for p in personPics:
+            if p['image']['size'] == 'original':
+              role.photo = p['image']['url']
+              break
+        except:
+          pass
 
     i = 0
     valid_names = list()
