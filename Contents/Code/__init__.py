@@ -4,8 +4,6 @@
 
 # TODO : Use proper country code for content-rating (hard coded to US right now)
 # TODO : Fall back to English if no results found for specified language (no longer automatic in 3.0 API)
-# TODO : Implement collections which are now exposed in the API
-# TODO : Re-implement role photos
 # TODO : Investigate fallback searches by opensubtitles hash (appears to be deprecated in 3.0)
 
 
@@ -96,6 +94,10 @@ class TMDbAgent(Agent.Movies):
     for genre in tmdb_dict['genres']:
       metadata.genres.add(genre['name'])
 
+    # Collections.
+    if Prefs['collections'] and tmdb_dict['belongs_to_collection'] is not None:
+        metadata.collections.add(tmdb_dict['belongs_to_collection']['name'])
+
     # Studio.
     try: metadata.studio = tmdb_dict['production_companies'][0]['name'].strip()
     except: pass
@@ -104,6 +106,7 @@ class TMDbAgent(Agent.Movies):
     metadata.directors.clear()
     metadata.writers.clear()
     metadata.roles.clear()
+    config_dict = JSON.ObjectFromURL(TMDB_CONFIG_URL, cacheTime=CACHE_1MONTH * 3)
 
     for member in tmdb_dict['casts']['crew']:
       if member['job'] == 'Director':
@@ -115,9 +118,8 @@ class TMDbAgent(Agent.Movies):
         role = metadata.roles.new()
         role.role = member['character']
         role.actor = member['name']
-
-
-    config_dict = JSON.ObjectFromURL(TMDB_CONFIG_URL, cacheTime=CACHE_1MONTH * 3)
+        if member['profile_path'] is not None:
+          role.photo = config_dict['images']['base_url'] + 'original' + member['profile_path']
 
     valid_names = list()
     for i, poster in enumerate(sorted(tmdb_dict['images']['posters'], key=lambda k: k['vote_count'], reverse=True)):
