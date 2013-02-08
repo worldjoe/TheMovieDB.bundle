@@ -3,9 +3,6 @@
 # 3.0 API update by ToMM
 
 # TODO : Use proper country code for content-rating (hard coded to US right now)
-# TODO : Fall back to English if no results found for specified language (no longer automatic in 3.0 API)
-# TODO : Investigate fallback searches by opensubtitles hash (appears to be deprecated in 3.0)
-
 
 import time
 
@@ -95,8 +92,9 @@ class TMDbAgent(Agent.Movies):
 			metadata.genres.add(genre['name'])
 
 		# Collections.
+		metadata.collections.clear()
 		if Prefs['collections'] and tmdb_dict['belongs_to_collection'] is not None:
-				metadata.collections.add(tmdb_dict['belongs_to_collection']['name'])
+				metadata.collections.add(tmdb_dict['belongs_to_collection']['name'].replace(' Collection',''))
 
 		# Studio.
 		try: metadata.studio = tmdb_dict['production_companies'][0]['name'].strip()
