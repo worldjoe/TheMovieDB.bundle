@@ -2,52 +2,98 @@
 # Multi-language support added by Aqntbghd
 # 3.0 API update by ToMM
 
-# TODO : Use proper country code for content-rating (hard coded to US right now)
-
 import time
 
 # apiary.io debugging URL
 # BASE_URL = 'http://private-ad99a-themoviedb.apiary.io/3/'
 
-BASE_URL = 'http://api.themoviedb.org/3/'
+BASE_URL = 'https://api.themoviedb.org/3/'
 
 TMDB_CONFIG_URL = BASE_URL + 'configuration?api_key=a3dc111e66105f6387e99393813ae4d5'
 TMDB_ID_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&language=%s'
 TMDB_MOVIE_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&append_to_response=releases,casts,images&language=%s'
 
+TMDB_COUNTRY_CODE = {
+  'Argentina': 'AR',
+  'Australia': 'AU',
+  'Austria': 'AT',
+  'Belgium': 'BE',
+  'Belize': 'BZ',
+  'Bolivia': 'BO',
+  'Brazil': 'BR',
+  'Canada': 'CA',
+  'Chile': 'CL',
+  'Colombia': 'CO',
+  'Costa Rica': 'CR',
+  'Czech Republic': 'CZ',
+  'Denmark': 'DA',
+  'Dominican Republic': 'DO',
+  'Ecuador': 'EC',
+  'El Salvador': 'SV',
+  'France': 'FR',
+  'Germany': 'DE',
+  'Guatemala': 'GT',
+  'Honduras': 'HN',
+  'Hong Kong SAR': 'HK',
+  'Ireland': 'IE',
+  'Italy': 'IT',
+  'Jamaica': 'JM',
+  'Liechtenstein': 'LI',
+  'Luxembourg': 'LU',
+  'Mexico': 'MX',
+  'Netherlands': 'NL',
+  'New Zealand': 'NZ',
+  'Nicaragua': 'NI',
+  'Panama': 'PA',
+  'Paraguay': 'PY',
+  'Peru': 'PE',
+  'Portugal': 'PT',
+  'Peoples Republic of China': 'CN',
+  'Puerto Rico': 'PR',
+  'Russia': 'RU',
+  'Singapore': 'SG',
+  'South Africa': 'ZA',
+  'Spain': 'ES',
+  'Sweden': 'SV',
+  'Switzerland': 'CH',
+  'Taiwan': 'TW',
+  'Trinidad': 'TT',
+  'United Kingdom': 'GB',
+  'United States': 'US',
+  'Uruguay': 'UY',
+  'Venezuela': 'VE'
+}
+
+####################################################################################################
 def Start():
-  HTTP.CacheTime = CACHE_1HOUR * 4
+  HTTP.CacheTime = CACHE_1MONTH
   HTTP.Headers['Accept'] = 'application/json'
 
+####################################################################################################
 class TMDbAgent(Agent.Movies):
   name = 'TheMovieDB'
   languages = [Locale.Language.English, Locale.Language.Swedish, Locale.Language.French,
                Locale.Language.Spanish, Locale.Language.Dutch, Locale.Language.German,
-               Locale.Language.Italian, Locale.Language.Danish]
+               Locale.Language.Italian, Locale.Language.Danish, Locale.Language.Portuguese,
+               Locale.Language.Czech, Locale.Language.Russian]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.imdb']
 
   def search(self, results, media, lang):
     if media.primary_metadata is not None:
-      tmdb_id = str(JSON.ObjectFromURL(TMDB_ID_URL % (media.primary_metadata.id, lang))['id'])
-      if tmdb_id:
-        results.Append(MetadataSearchResult(id = tmdb_id, score = 100))
+      tmdb_dict = self.get_json(TMDB_ID_URL % (media.primary_metadata.id, lang))
 
-  def update(self, metadata, media, lang): 
+      if tmdb_dict is not None and 'id' in tmdb_dict:
+        results.Append(MetadataSearchResult(
+          id = str(tmdb_dict['id']),
+          score = 100
+        ))
+
+  def update(self, metadata, media, lang):
     proxy = Proxy.Preview
-    
-    # try n times waiting 5 seconds in between if something goes wrong
-    tmdb_dict = None
-    for t in range(3):
-      try:
-        tmdb_dict = JSON.ObjectFromURL(TMDB_MOVIE_URL % (metadata.id, lang))
-      except:
-        time.sleep(5)
-      if isinstance(tmdb_dict, dict):
-        break
+    tmdb_dict = self.get_json(TMDB_MOVIE_URL % (metadata.id, lang))
 
-    if tmdb_dict is None or not isinstance(tmdb_dict, dict):
-      Log('Exception fetching JSON from theMovieDB (1).')
+    if tmdb_dict is None:
       return None
 
     # Rating.
@@ -66,9 +112,13 @@ class TMDbAgent(Agent.Movies):
     metadata.tagline = tmdb_dict['tagline']
 
     # Content rating.
-    for country in tmdb_dict['releases']['countries']:
-      if country['iso_3166_1'] == 'US':
-        metadata.content_rating = country['certification']    
+    if Prefs['country'] != '':
+      c = Prefs['country']
+
+      for country in tmdb_dict['releases']['countries']:
+        if country['iso_3166_1'] == TMDB_COUNTRY_CODE[c]:
+          metadata.content_rating = country['certification']
+          break
     
     # Summary.
     metadata.summary = tmdb_dict['overview']
@@ -104,7 +154,7 @@ class TMDbAgent(Agent.Movies):
     metadata.directors.clear()
     metadata.writers.clear()
     metadata.roles.clear()
-    config_dict = JSON.ObjectFromURL(TMDB_CONFIG_URL, cacheTime=CACHE_1MONTH * 3)
+    config_dict = self.get_json(TMDB_CONFIG_URL)
 
     for member in tmdb_dict['casts']['crew']:
       if member['job'] == 'Director':
@@ -142,3 +192,19 @@ class TMDbAgent(Agent.Movies):
         except: pass
 
     metadata.art.validate_keys(valid_names)
+
+  def get_json(self, url):
+    # try n times waiting 5 seconds in between if something goes wrong
+    tmdb_dict = None
+
+    for t in range(3):
+      try:
+        tmdb_dict = JSON.ObjectFromURL(url, sleep=2.0)
+      except:
+        time.sleep(5)
+
+      if isinstance(tmdb_dict, dict):
+        return tmdb_dict
+
+    Log('Error fetching JSON from TheMovieDB')
+    return None
