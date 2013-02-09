@@ -26,7 +26,7 @@ TMDB_COUNTRY_CODE = {
   'Colombia': 'CO',
   'Costa Rica': 'CR',
   'Czech Republic': 'CZ',
-  'Denmark': 'DA',
+  'Denmark': 'DK',
   'Dominican Republic': 'DO',
   'Ecuador': 'EC',
   'El Salvador': 'SV',
