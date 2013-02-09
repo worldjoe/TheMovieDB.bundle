@@ -74,8 +74,7 @@ class TMDbAgent(Agent.Movies):
   name = 'TheMovieDB'
   languages = [Locale.Language.English, Locale.Language.Swedish, Locale.Language.French,
                Locale.Language.Spanish, Locale.Language.Dutch, Locale.Language.German,
-               Locale.Language.Italian, Locale.Language.Danish, Locale.Language.Portuguese,
-               Locale.Language.Czech, Locale.Language.Russian]
+               Locale.Language.Italian, Locale.Language.Danish]
   primary_provider = False
   contributes_to = ['com.plexapp.agents.imdb']
 
