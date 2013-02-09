@@ -171,7 +171,7 @@ class TMDbAgent(Agent.Movies):
     valid_names = list()
     for i, poster in enumerate(sorted(tmdb_dict['images']['posters'], key=lambda k: k['vote_count'], reverse=True)):
       poster_url = config_dict['images']['base_url'] + 'original' + poster['file_path']
-      thumb_url = config_dict['images']['base_url'] + 'w500' + poster['file_path']
+      thumb_url = config_dict['images']['base_url'] + 'w154' + poster['file_path']
       valid_names.append(poster_url)
 
       if poster_url not in metadata.posters:
@@ -183,7 +183,7 @@ class TMDbAgent(Agent.Movies):
     valid_names = list()
     for i, backdrop in enumerate(sorted(tmdb_dict['images']['backdrops'], key=lambda k: k['vote_count'], reverse=True)):
       backdrop_url = config_dict['images']['base_url'] + 'original' + backdrop['file_path']
-      thumb_url = config_dict['images']['base_url'] + 'w780' + backdrop['file_path']
+      thumb_url = config_dict['images']['base_url'] + 'w300' + backdrop['file_path']
       valid_names.append(backdrop_url)
 
       if backdrop_url not in metadata.art:
