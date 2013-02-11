@@ -132,10 +132,10 @@ class TMDbAgent(Agent.Movies):
       metadata.rating = rating
 
     # Title of the film.
-    if Prefs['title']:
-      metadata.title = tmdb_dict['title']
-    else:
-      metadata.title = ""
+    metadata.title = tmdb_dict['title']
+
+    if 'original_title' in tmdb_dict:
+      metadata.original_title = tmdb_dict['original_title']
 
     # Tagline.
     metadata.tagline = tmdb_dict['tagline']

@@ -1,11 +1,5 @@
 [
     {
-        "id": "title",
-        "label": "Use movie title from TheMovieDB",
-        "type": "bool",
-        "default": "false"
-    },
-    {
         "id": "collections",
         "label": "Use collection info from TheMovieDB",
         "type": "bool",
