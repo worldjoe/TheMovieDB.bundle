@@ -6,6 +6,12 @@
         "default": "false"
     },
     {
+        "id": "localart",
+        "label": "Prefer localized artwork",
+        "type": "bool",
+        "default": "true"
+    },
+    {
         "id": "country",
         "label": "Country",
         "type": "enum",

@@ -11,8 +11,14 @@ BASE_URL = 'https://api.themoviedb.org/3/'
 
 TMDB_CONFIG_URL = BASE_URL + 'configuration?api_key=a3dc111e66105f6387e99393813ae4d5'
 TMDB_ID_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&language=%s'
-TMDB_MOVIE_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&append_to_response=releases,casts,images&language=%s'
+TMDB_MOVIE_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&append_to_response=releases,casts&language=%s'
+TMDB_IMAGES_URL = BASE_URL + 'movie/%s/images?api_key=a3dc111e66105f6387e99393813ae4d5'
 TMDB_SEARCH_URL = BASE_URL + 'search/movie?api_key=a3dc111e66105f6387e99393813ae4d5&query=%s&year=%s&language=%s'
+
+ARTWORK_ITEM_LIMIT = 15
+REQUEST_RETRY_LIMIT = 3
+VOTE_COUNT_BOOST = 100
+
 
 TMDB_COUNTRY_CODE = {
   'Argentina': 'AR',
@@ -121,8 +127,10 @@ class TMDbAgent(Agent.Movies):
   def update(self, metadata, media, lang):
     proxy = Proxy.Preview
     tmdb_dict = self.get_json(url=TMDB_MOVIE_URL % (metadata.id, lang))
+    # This second request is necessary since full art/poster lists are not returned if they don't exactly match the language
+    tmdb_images_dict = self.get_json(url=TMDB_IMAGES_URL % metadata.id)
 
-    if tmdb_dict is None:
+    if tmdb_dict is None or tmdb_images_dict is None:
       return None
 
     # Rating.
@@ -202,27 +210,58 @@ class TMDbAgent(Agent.Movies):
       if member['profile_path'] is not None:
         role.photo = config_dict['images']['base_url'] + 'original' + member['profile_path']
 
-    valid_names = list()
-    for i, poster in enumerate(sorted(tmdb_dict['images']['posters'], key=lambda k: k['vote_count'], reverse=True)):
-      poster_url = config_dict['images']['base_url'] + 'original' + poster['file_path']
-      thumb_url = config_dict['images']['base_url'] + 'w154' + poster['file_path']
-      valid_names.append(poster_url)
+    # Note: for TMDB artwork, number of votes is a far better predictor of quality than average rating.
+    # Popular posters for very popular movies have vote counts in the 20-30 range, so we'll boost/discount by a healthy margin.
 
-      if poster_url not in metadata.posters:
-        try: metadata.posters[poster_url] = proxy(HTTP.Request(thumb_url), sort_order = i)
-        except: pass
+    valid_names = list()
+    for i, poster in enumerate(tmdb_images_dict['posters']):
+
+      # Boost the score for localized posters (according to the preference).
+      if Prefs['localart']:
+        if poster['iso_639_1'] == lang:
+          tmdb_images_dict['posters'][i]['vote_count'] = float(poster['vote_count']) + VOTE_COUNT_BOOST
+    
+      # Discount score for foreign posters.
+      if poster['iso_639_1'] != lang and poster['iso_639_1'] is not None and poster['iso_639_1'] != 'en':
+        tmdb_images_dict['posters'][i]['vote_count'] = float(poster['vote_count']) - VOTE_COUNT_BOOST
+
+    for i, poster in enumerate(sorted(tmdb_images_dict['posters'], key=lambda k: k['vote_count'], reverse=True)):
+      if i > ARTWORK_ITEM_LIMIT:
+        break
+      else:
+        poster_url = config_dict['images']['base_url'] + 'original' + poster['file_path']
+        thumb_url = config_dict['images']['base_url'] + 'w154' + poster['file_path']
+        valid_names.append(poster_url)
+
+        if poster_url not in metadata.posters:
+          try: metadata.posters[poster_url] = proxy(HTTP.Request(thumb_url), sort_order=i+1)
+          except: pass
 
     metadata.posters.validate_keys(valid_names)
 
     valid_names = list()
-    for i, backdrop in enumerate(sorted(tmdb_dict['images']['backdrops'], key=lambda k: k['vote_count'], reverse=True)):
-      backdrop_url = config_dict['images']['base_url'] + 'original' + backdrop['file_path']
-      thumb_url = config_dict['images']['base_url'] + 'w300' + backdrop['file_path']
-      valid_names.append(backdrop_url)
+    for i, backdrop in enumerate(tmdb_images_dict['backdrops']):
+  
+      # Boost the score for localized art (according to the preference).
+      if Prefs['localart']:
+        if backdrop['iso_639_1'] == lang:
+          tmdb_images_dict['backdrops'][i]['vote_count'] = float(backdrop['vote_count']) + VOTE_COUNT_BOOST
 
-      if backdrop_url not in metadata.art:
-        try: metadata.art[backdrop_url] = proxy(HTTP.Request(thumb_url), sort_order = i)
-        except: pass
+      # Discount score for foreign art.
+      if backdrop['iso_639_1'] != lang and backdrop['iso_639_1'] is not None and backdrop['iso_639_1'] != 'en':
+        tmdb_images_dict['backdrops'][i]['vote_count'] = float(backdrop['vote_count']) - VOTE_COUNT_BOOST
+
+    for i, backdrop in enumerate(sorted(tmdb_images_dict['backdrops'], key=lambda k: k['vote_count'], reverse=True)):
+      if i > ARTWORK_ITEM_LIMIT:
+        break
+      else:
+        backdrop_url = config_dict['images']['base_url'] + 'original' + backdrop['file_path']
+        thumb_url = config_dict['images']['base_url'] + 'w300' + backdrop['file_path']
+        valid_names.append(backdrop_url)
+
+        if backdrop_url not in metadata.art:
+          try: metadata.art[backdrop_url] = proxy(HTTP.Request(thumb_url), sort_order=i+1)
+          except: pass
 
     metadata.art.validate_keys(valid_names)
 
@@ -230,10 +269,11 @@ class TMDbAgent(Agent.Movies):
     # try n times waiting 5 seconds in between if something goes wrong
     tmdb_dict = None
 
-    for t in range(3):
+    for t in reversed(range(REQUEST_RETRY_LIMIT)):
       try:
         tmdb_dict = JSON.ObjectFromURL(url, sleep=2.0, cacheTime=cache_time)
       except:
+        Log('Error fetching JSON from TheMovieDB, will try %s more time(s) before giving up.', str(t))
         time.sleep(5)
 
       if isinstance(tmdb_dict, dict):
