@@ -138,7 +138,7 @@ class TMDbAgent(Agent.Movies):
     # Title of the film.
     metadata.title = tmdb_dict['title']
 
-    if 'original_title' in tmdb_dict:
+    if 'original_title' in tmdb_dict and tmdb_dict['original_title'] != tmdb_dict['title']:
       metadata.original_title = tmdb_dict['original_title']
 
     # Tagline.
