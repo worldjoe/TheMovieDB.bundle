@@ -10,7 +10,6 @@ import time
 BASE_URL = 'https://api.themoviedb.org/3/'
 
 TMDB_CONFIG_URL = BASE_URL + 'configuration?api_key=a3dc111e66105f6387e99393813ae4d5'
-TMDB_ID_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&language=%s'
 TMDB_MOVIE_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&append_to_response=releases,casts&language=%s'
 TMDB_IMAGES_URL = BASE_URL + 'movie/%s/images?api_key=a3dc111e66105f6387e99393813ae4d5'
 TMDB_SEARCH_URL = BASE_URL + 'search/movie?api_key=a3dc111e66105f6387e99393813ae4d5&query=%s&year=%s&language=%s'
@@ -18,7 +17,7 @@ TMDB_SEARCH_URL = BASE_URL + 'search/movie?api_key=a3dc111e66105f6387e99393813ae
 ARTWORK_ITEM_LIMIT = 15
 REQUEST_RETRY_LIMIT = 3
 VOTE_COUNT_BOOST = 100
-
+RE_IMDB_ID = Regex('^tt\d{7}$')
 
 TMDB_COUNTRY_CODE = {
   'Argentina': 'AR',
@@ -86,14 +85,11 @@ class TMDbAgent(Agent.Movies):
   contributes_to = ['com.plexapp.agents.imdb']
 
   def search(self, results, media, lang):
-    if media.primary_metadata is not None:
-      tmdb_dict = self.get_json(url=TMDB_ID_URL % (media.primary_metadata.id, lang))
-
-      if tmdb_dict and 'id' in tmdb_dict:
-        results.Append(MetadataSearchResult(
-          id = str(tmdb_dict['id']),
-          score = 100
-        ))
+    if media.primary_metadata is not None and RE_IMDB_ID.search(media.primary_metadata.id):
+      results.Append(MetadataSearchResult(
+        id = media.primary_metadata.id,
+        score = 100
+      ))
     else:
       tmdb_dict = self.get_json(url=TMDB_SEARCH_URL % (String.Quote(media.name), media.year, lang))
 
