@@ -146,8 +146,12 @@ class TMDbAgent(Agent.Movies):
 
       for country in tmdb_dict['releases']['countries']:
         if country['iso_3166_1'] == TMDB_COUNTRY_CODE[c]:
-          metadata.content_rating = '%s/%s' % (TMDB_COUNTRY_CODE[c].lower(), country['certification'])
-          break
+          if 'certification' in country and country['certification'] != '':
+            if TMDB_COUNTRY_CODE[c] == 'US':
+              metadata.content_rating = country['certification']
+            else:
+              metadata.content_rating = '%s/%s' % (TMDB_COUNTRY_CODE[c].lower(), country['certification'])
+            break
 
     # Summary.
     metadata.summary = tmdb_dict['overview']
