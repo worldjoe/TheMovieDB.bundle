@@ -144,30 +144,36 @@ class TMDbAgent(Agent.Movies):
     # Tagline.
     metadata.tagline = tmdb_dict['tagline']
 
-    # Content rating.
+    # Release date.
+    try:
+      metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['release_date']).date()
+      metadata.year = metadata.originally_available_at.year
+    except:
+      pass
+
     if Prefs['country'] != '':
       c = Prefs['country']
 
       for country in tmdb_dict['releases']['countries']:
         if country['iso_3166_1'] == TMDB_COUNTRY_CODE[c]:
+
+          # Content rating.
           if 'certification' in country and country['certification'] != '':
             if TMDB_COUNTRY_CODE[c] == 'US':
               metadata.content_rating = country['certification']
             else:
               metadata.content_rating = '%s/%s' % (TMDB_COUNTRY_CODE[c].lower(), country['certification'])
-            break
+
+          # Release date (country specific).
+          if 'release_date' in country and country['release_date'] != '':
+            metadata.originally_available_at = Datetime.ParseDate(country['release_date']).date()
+
+          break
 
     # Summary.
     metadata.summary = tmdb_dict['overview']
     if metadata.summary == 'No overview found.':
       metadata.summary = ""
-
-    # Release date.
-    try: 
-      metadata.originally_available_at = Datetime.ParseDate(tmdb_dict['release_date']).date()
-      metadata.year = metadata.originally_available_at.year
-    except: 
-      pass
 
     # Runtime.
     try: metadata.duration = int(tmdb_dict['runtime']) * 60 * 1000
