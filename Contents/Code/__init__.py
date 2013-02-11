@@ -12,6 +12,7 @@ BASE_URL = 'https://api.themoviedb.org/3/'
 TMDB_CONFIG_URL = BASE_URL + 'configuration?api_key=a3dc111e66105f6387e99393813ae4d5'
 TMDB_ID_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&language=%s'
 TMDB_MOVIE_URL = BASE_URL + 'movie/%s?api_key=a3dc111e66105f6387e99393813ae4d5&append_to_response=releases,casts,images&language=%s'
+TMDB_SEARCH_URL = BASE_URL + 'search/movie?api_key=a3dc111e66105f6387e99393813ae4d5&query=%s&year=%s&language=%s'
 
 TMDB_COUNTRY_CODE = {
   'Argentina': 'AR',
@@ -66,7 +67,6 @@ TMDB_COUNTRY_CODE = {
 
 ####################################################################################################
 def Start():
-  HTTP.CacheTime = CACHE_1MONTH
   HTTP.Headers['Accept'] = 'application/json'
 
 ####################################################################################################
@@ -75,22 +75,52 @@ class TMDbAgent(Agent.Movies):
   languages = [Locale.Language.English, Locale.Language.Swedish, Locale.Language.French,
                Locale.Language.Spanish, Locale.Language.Dutch, Locale.Language.German,
                Locale.Language.Italian, Locale.Language.Danish]
-  primary_provider = False
+  primary_provider = True
+  accepts_from = ['com.plexapp.agents.localmedia']
   contributes_to = ['com.plexapp.agents.imdb']
 
   def search(self, results, media, lang):
     if media.primary_metadata is not None:
-      tmdb_dict = self.get_json(TMDB_ID_URL % (media.primary_metadata.id, lang))
+      tmdb_dict = self.get_json(url=TMDB_ID_URL % (media.primary_metadata.id, lang))
 
-      if tmdb_dict is not None and 'id' in tmdb_dict:
+      if tmdb_dict and 'id' in tmdb_dict:
         results.Append(MetadataSearchResult(
           id = str(tmdb_dict['id']),
           score = 100
         ))
+    else:
+      tmdb_dict = self.get_json(url=TMDB_SEARCH_URL % (String.Quote(media.name), media.year, lang))
+
+      if tmdb_dict and 'results' in tmdb_dict:
+        for movie in tmdb_dict['results']:
+          score = 90
+          score = score - abs(String.LevenshteinDistance(movie['title'].lower(), media.name.lower()))
+
+          if media.year and int(media.year) > 1900 and 'release_date' in movie:
+            release_year = int(movie['release_date'].split('-')[0])
+            year_diff = abs(int(media.year) - release_year)
+
+            if year_diff <= 1:
+              score = score + 10
+            else:
+              score = score - (5 * year_diff)
+          else:
+            release_year = None
+
+          if score <= 0:
+            continue
+          else:
+            results.Append(MetadataSearchResult(
+              id = str(movie['id']),
+              name = movie['title'],
+              year = release_year,
+              score = score,
+              lang = lang
+            ))
 
   def update(self, metadata, media, lang):
     proxy = Proxy.Preview
-    tmdb_dict = self.get_json(TMDB_MOVIE_URL % (metadata.id, lang))
+    tmdb_dict = self.get_json(url=TMDB_MOVIE_URL % (metadata.id, lang))
 
     if tmdb_dict is None:
       return None
@@ -118,7 +148,7 @@ class TMDbAgent(Agent.Movies):
         if country['iso_3166_1'] == TMDB_COUNTRY_CODE[c]:
           metadata.content_rating = '%s/%s' % (TMDB_COUNTRY_CODE[c].lower(), country['certification'])
           break
-    
+
     # Summary.
     metadata.summary = tmdb_dict['overview']
     if metadata.summary == 'No overview found.':
@@ -153,20 +183,20 @@ class TMDbAgent(Agent.Movies):
     metadata.directors.clear()
     metadata.writers.clear()
     metadata.roles.clear()
-    config_dict = self.get_json(TMDB_CONFIG_URL)
+    config_dict = self.get_json(url=TMDB_CONFIG_URL, cache_time=CACHE_1MONTH * 3)
 
     for member in tmdb_dict['casts']['crew']:
       if member['job'] == 'Director':
         metadata.directors.add(member['name'])
       elif member['job'] == 'Writing':
         metadata.writers.add(member['name'])
-    
+
     for member in tmdb_dict['casts']['cast']:
-        role = metadata.roles.new()
-        role.role = member['character']
-        role.actor = member['name']
-        if member['profile_path'] is not None:
-          role.photo = config_dict['images']['base_url'] + 'original' + member['profile_path']
+      role = metadata.roles.new()
+      role.role = member['character']
+      role.actor = member['name']
+      if member['profile_path'] is not None:
+        role.photo = config_dict['images']['base_url'] + 'original' + member['profile_path']
 
     valid_names = list()
     for i, poster in enumerate(sorted(tmdb_dict['images']['posters'], key=lambda k: k['vote_count'], reverse=True)):
@@ -179,7 +209,7 @@ class TMDbAgent(Agent.Movies):
         except: pass
 
     metadata.posters.validate_keys(valid_names)
-  
+
     valid_names = list()
     for i, backdrop in enumerate(sorted(tmdb_dict['images']['backdrops'], key=lambda k: k['vote_count'], reverse=True)):
       backdrop_url = config_dict['images']['base_url'] + 'original' + backdrop['file_path']
@@ -192,13 +222,13 @@ class TMDbAgent(Agent.Movies):
 
     metadata.art.validate_keys(valid_names)
 
-  def get_json(self, url):
+  def get_json(self, url, cache_time=CACHE_1MONTH):
     # try n times waiting 5 seconds in between if something goes wrong
     tmdb_dict = None
 
     for t in range(3):
       try:
-        tmdb_dict = JSON.ObjectFromURL(url, sleep=2.0)
+        tmdb_dict = JSON.ObjectFromURL(url, sleep=2.0, cacheTime=cache_time)
       except:
         time.sleep(5)
 
