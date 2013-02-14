@@ -99,20 +99,25 @@ class TMDbAgent(Agent.Movies):
       tmdb_dict = self.get_json(url=TMDB_SEARCH_URL % (String.Quote(media.name), year, lang))
 
       if tmdb_dict and 'results' in tmdb_dict:
-        for movie in tmdb_dict['results']:
+        for i, movie in enumerate(sorted(tmdb_dict['results'], key=lambda k: k['popularity'], reverse=True)):
           score = 90
           score = score - abs(String.LevenshteinDistance(movie['title'].lower(), media.name.lower()))
 
-          if media.year and int(media.year) > 1900 and 'release_date' in movie:
+          # Adjust score slightly for 'popularity' (helpful for similar or identical titles when no media.year is present)
+          score = score - (5 * i)
+
+          if 'release_date' in movie and movie['release_date'] != '':
             release_year = int(movie['release_date'].split('-')[0])
+          else:
+            release_year = None
+
+          if media.year and int(media.year) > 1900 and release_year:
             year_diff = abs(int(media.year) - release_year)
 
             if year_diff <= 1:
               score = score + 10
             else:
               score = score - (5 * year_diff)
-          else:
-            release_year = None
 
           if score <= 0:
             continue
