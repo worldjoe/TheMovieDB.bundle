@@ -91,7 +91,12 @@ class TMDbAgent(Agent.Movies):
         score = 100
       ))
     else:
-      tmdb_dict = self.get_json(url=TMDB_SEARCH_URL % (String.Quote(media.name), media.year, lang))
+      if media.year and int(media.year) > 1900:
+        year = media.year
+      else:
+        year = ''
+
+      tmdb_dict = self.get_json(url=TMDB_SEARCH_URL % (String.Quote(media.name), year, lang))
 
       if tmdb_dict and 'results' in tmdb_dict:
         for movie in tmdb_dict['results']:
@@ -193,17 +198,27 @@ class TMDbAgent(Agent.Movies):
     try: metadata.studio = tmdb_dict['production_companies'][0]['name'].strip()
     except: pass
 
+    # Country.
+    metadata.countries.clear()
+    if 'production_countries' in tmdb_dict:
+      for country in tmdb_dict['production_countries']:
+        country = country['name'].replace('United States of America', 'USA')
+        metadata.countries.add(country)
+
     # Cast.
     metadata.directors.clear()
     metadata.writers.clear()
+    metadata.producers.clear()
     metadata.roles.clear()
     config_dict = self.get_json(url=TMDB_CONFIG_URL, cache_time=CACHE_1MONTH * 3)
 
     for member in tmdb_dict['casts']['crew']:
       if member['job'] == 'Director':
         metadata.directors.add(member['name'])
-      elif member['job'] == 'Writing':
+      elif member['job'] in ('Writer', 'Screenplay'):
         metadata.writers.add(member['name'])
+      elif member['job'] == 'Producer':
+        metadata.producers.add(member['name'])
 
     for member in tmdb_dict['casts']['cast']:
       role = metadata.roles.new()
