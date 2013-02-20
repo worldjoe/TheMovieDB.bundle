@@ -192,7 +192,7 @@ class TMDbAgent(Agent.Movies):
     # Genres.
     metadata.genres.clear()
     for genre in tmdb_dict['genres']:
-      metadata.genres.add(genre['name'])
+      metadata.genres.add(genre['name'].strip())
 
     # Collections.
     metadata.collections.clear()
